@@ -1,30 +1,35 @@
-const webSocketServerPort = 8000;
-const webSocketServer = require('websocket').server;
-const http = require('http');
+const express = require('express');
+const socket = require('socket.io');
+const path = require('path');
 
-// Spinning the http server and the websocket server.
-const server = http.createServer();
-server.listen(webSocketServerPort);
-console.log('listening to port ' + webSocketServerPort);
 
-const wsServer = new webSocketServer({
-   httpServer: server,
-});
+// App setup
+const PORT = 8000;
+const app = express();
+const server = app.listen(PORT, () => {
+   console.log('listening to requests on port ' + PORT);
+})
 
-const clients = {};
+// Static files
+// app.use(express.static('pubic'));
 
-// This code generates unique userid for every user.
-const getUniqueID = () => {
-   const s4 = () =>
-      Math.floor((1 + Math.random()) * 0x10000)
-         .toString(16)
-         .substring(1);
-   return s4() + s4() + '-' + s4();
-};
+app.use('/', express.static(path.join(__dirname, 'public')));
+app.use('/images', express.static(__dirname + '/images'))
 
-wsServer.on('request', function (request) {
-   let userID = getUniqueID();
-});
 
-// https://www.youtube.com/watch?v=LenNpb5zqGE
-// 5.28
+// Socket setup
+const io = socket(server)
+
+io.on('connection', function(socket) {
+   console.log('made socket connection', socket.id)
+
+   // Handle Chat event
+   socket.on('chat', function(data) {
+      io.sockets.emit('chat', data);
+   })
+
+   // broadcast to everyone except the original sender
+   socket.on('typing', (data) => {
+      socket.broadcast.emit('typing', data);
+   })
+})
